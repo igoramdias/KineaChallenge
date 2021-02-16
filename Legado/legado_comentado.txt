@@ -1,0 +1,63 @@
+Código Legado
+* main()
+- Pega o path onde está sendo executado o programa
+- Escolhe se quer atualizar e esperar até o usuário querer
+- Querendo atualizar, pega a data e joga em update_base
+** update_base()
+- Exclui todos os arquivos existentes na pasta file_path+"\\base\\"
+- Pega os files existentes em downloads (IMA, REUNE e Tax)
+// Onde vem essa tabela Tax ? É utilizada para usar as sheets IPCA_SPREAD e DI_SPREAD
+**
+- Com atualização dos arquivos em \\base\\, chamar read_base_debentures()
+** read_base_debentures()
+- Ler um arq em excel, sendo ele a base incentivada 
+- Ler um arq em excel, sendo ele a base convencional
+- Guarda os ativos da base incentivada
+- Guarda os ativos da base convencional
+// O que é a base incentivada ? Indexada ao IPCA
+// O que é a base convencional ? Indexada ao DI
+**
+- Por fim, chama write_in_excel()
+** write_in_excel()
+- Pega os arquivos criados em read_base_debentures() (IMAB, REUNE e TAXAS - essa dividida entre IPCA__SPREAD e DI_SPREAD)
+- Analisando os Dados de Reune:
+-- Para cada Row, analisar somente as que forem agrupamento de operações globais e resultados não vazios
+-- Verifica se o ticker está presente na list de ativos_incentivada e retorna o índice na list ou False, caso não encontre
+-- Se o ticker estiver em ativos_incentivada, criar uma nova list para aquele ticker, contendo dados proveniente tanto de base_incentivada, como de reune_complete. Ainda, caso não tenha Rating Atual para Br, colocar o Rating de Emissão. Caso tenha, só incluir os Ratings
+-- Acrescentar tal list em data_ipca
+-- Se o ticker não estiver em ativos_incentivada, verifica se o ticker está presente na list de ativos_incentivada e retorna o índice na list ou False, caso não encontre
+-- Se o ticker estiver em ativos_convencional, criar uma nova list para aquele ticker, contendo dados proveniente tanto de base_incentivada, como de reune_complete. Ainda, caso não tenha Rating Atual para Br, colocar o Rating de Emissão. Caso tenha, só incluir os Ratings
+-- Acrescentar tal list em data_di
+-- Juntar as duas list of list (data_ipca e data_di) em data
+-- Com os dados de data_ipca, criar o dataframe reune_ipca e, deste, criar o ticker_ipca
+-- Com os dados de data_di, criar o dataframe reune_di e, deste, criar o ticker_di
+-- Juntar em reune, reune_ipca e reune_di
+- Analisando os Dados de IMA-B
+-- Zerado data
+-- Para cada Row, verificar se a Taxa Indicativa é não nula. Em não sendo, criar um list com os dados de imab_complete
+-- Add essa list em data
+-- Criar um dataframe imab, com os dados de data
+- Analisando Taxas ANBIMA
+-- Zerar o data
+-- Analisando Taxas ANBIMA IPCA
+--- Zerar a list data
+--- Para cada Row, verificar se o ticker está presente na list de ativos_incentivada e retorna o índice na list ou False, caso não encontre
+--- Criar uma list com os dados de base_incentivada e taxas_complete
+--- Add esta list em data
+-- Analisando Taxas ANBIMA DI
+--- Para cada Row, verificar se o ticker está presente na list de ativos_convencional e retorna o índice na list ou False, caso não encontre
+--- Criar uma list com os dados de base_convencional e taxas_complete_di
+--- Add esta list em data
+-- Criar o dataframe taxas com os dados em data
+- Criar um arquivo em excel, com 5 WorkBooks
+- Chamar write_tickers para tickers_ipca e tickers_di
+*** write_tickers
+- Escrever no excel os dados provenientes de tickers_ipca e tickers_di
+***
+- Chamar write_in_sheets para reune, imab e taxas
+*** write_in_sheets
+- Escrever no excel os dados provenientes de reune, imab e taxas
+***
+**
+- Printar "end", podendo enviar um email
+*

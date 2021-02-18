@@ -10,7 +10,9 @@ if __name__ == "__main__":
         |                                            |\n\
         |                  Igor Amâncio Machado Dias |\n\
         |--------------------------------------------|\n\
-            Iniciando programa para atualização... ")
+            Iniciando programa para atualização... \n")
     
     dataIMAB, dataREUNE = gd.source()
+    
+    print(dataREUNE) 
     

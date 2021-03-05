@@ -6,13 +6,19 @@
 # |--------------------------------------------| 
 
 import get_data as gd
-import os
-import pandas as pd
+from ast import literal_eval
 
 if __name__ == "__main__":
     print("Iniciando programa para atualização...")
+
+    wants_incr = literal_eval(input("Deseja incrementar dados? (True/False):"))
     
-    dataIMAB, dataREUNE, dataIPCA, dataDI = gd.source()
-    dataDEBENT = gd.data_base()
+    while wants_incr is not True and wants_incr is not False:
+        wants_incr = literal_eval(input("Input não válido! Responda com True ou False:"))
+
+    if wants_incr:
+        data = input("Insira a data de referência (dd/mm/yy):")
+        dataDEB, dataIMAB, dataREUNE, dataIPCA, dataCDI, dataPCTCDI, dataETTJ, dataRATING, dataINCENT, dataCONVEN = gd.source(data)
+        gd.fill_sheets()
     
-    
+    print("Fim do programa!")

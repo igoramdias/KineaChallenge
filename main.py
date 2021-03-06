@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     if wants_incr:
         data = input("Insira a data de referência (dd/mm/yy):")
-        dataDEB, dataIMAB, dataREUNE, dataIPCA, dataCDI, dataPCTCDI, dataETTJ, dataRATING, dataINCENT, dataCONVEN = gd.source(data)
-        gd.fill_sheets()
+        data_RATING = gd.source(data)
+        gd.fill_sheets(data_RATING)
     
     print("Fim do programa!")

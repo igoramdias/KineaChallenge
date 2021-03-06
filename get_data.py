@@ -1,9 +1,23 @@
-from datetime import date
 import os
 import pandas as pd
 import numpy as np
 import openpyxl
 from openpyxl.utils.dataframe import dataframe_to_rows
+import datetime
+from typing import Tuple
+
+global DATA_DEB
+global IMAB
+global REUNE
+global TAXAS_IPCA
+global TAXAS_CDI
+global TAXAS_PCT_CDI
+global ETTJ
+global RATING
+global INCENT
+global CONVEN
+global BDINFRA_path
+global date
 
 def clear_sheet(sheet: str) -> None:
     """
@@ -47,7 +61,7 @@ def date_to_file(dt: str, type: str) -> str:
     """
         Função para converter a data em nome dos files
 
-        :param date: Data a ser analisada
+        :param dt: Data a ser analisada
         :param type: Para qual documento será feito o ajuste
     """
 
@@ -69,7 +83,7 @@ def date_to_file(dt: str, type: str) -> str:
     
     return file # Retorna o nome do file
 
-def clean(df: pd.DataFrame , type: str) -> pd.DataFrame:
+def clean(df: pd.DataFrame , type: str) -> Tuple[pd.DataFrame, datetime.datetime]:
     """
         Realizar pré-processamentos para bases a serem exploradas
 
@@ -135,7 +149,13 @@ def clean(df: pd.DataFrame , type: str) -> pd.DataFrame:
         df['Codigo do Ativo'] = df['Codigo do Ativo'].str.replace(' ','')
         df.columns = df.columns.str.replace(' ','')
 
-    return df # Retorna o DataFrame já ajustado para análises
+    dt_rat = None
+    if type == 'RATING':
+        dt_rat = pd.to_datetime(df.columns[0])
+        df.columns = df.iloc[0]
+        df = df.iloc[1:]
+
+    return df, dt_rat # Retorna o DataFrame já ajustado para análises
 
 def source(dt: str):
     """
@@ -152,34 +172,35 @@ def source(dt: str):
 
     global DATA_DEB
     DATA_DEB = pd.read_table(os.path.join(downloads_path, "Debentures.com.br_Caracteristica_em_03-03-2021_as_21-19-42.xls"), encoding='ANSI')
-    DATA_DEB = clean(DATA_DEB, 'DATA_DEB')
+    DATA_DEB, Lixo  = clean(DATA_DEB, 'DATA_DEB')
 
     global IMAB
     IMAB = pd.read_csv(os.path.join(downloads_path, date_to_file(date, 'IMAB')), sep=";", encoding='ANSI')
-    IMAB = clean(IMAB, 'IMAB')
+    IMAB, Lixo  = clean(IMAB, 'IMAB')
 
     global REUNE
     REUNE = pd.read_csv(os.path.join(downloads_path, date_to_file(date, 'REUNE')),sep=";",header=2, encoding='ANSI')
-    REUNE = clean(REUNE, 'REUNE')
+    REUNE, Lixo = clean(REUNE, 'REUNE')
 
     global TAXAS_IPCA
     TAXAS_IPCA = pd.read_excel(os.path.join(downloads_path, date_to_file(date, 'IPCA')), sheet_name='IPCA_SPREAD')
-    TAXAS_IPCA = clean(TAXAS_IPCA, 'IPCA')
+    TAXAS_IPCA, Lixo = clean(TAXAS_IPCA, 'IPCA')
 
     global TAXAS_CDI
     TAXAS_CDI = pd.read_excel(os.path.join(downloads_path, date_to_file(date, 'CDI')), sheet_name='DI_SPREAD')
-    TAXAS_CDI = clean(TAXAS_CDI, 'CDI')
+    TAXAS_CDI, Lixo = clean(TAXAS_CDI, 'CDI')
 
     global TAXAS_PCT_CDI
     TAXAS_PCT_CDI = pd.read_excel(os.path.join(downloads_path, date_to_file(date, '%CDI')), sheet_name='DI_PERCENTUAL')
-    TAXAS_PCT_CDI = clean(TAXAS_PCT_CDI, '%CDI')
+    TAXAS_PCT_CDI, Lixo = clean(TAXAS_PCT_CDI, '%CDI')
 
     global ETTJ
     ETTJ = pd.read_csv(os.path.join(downloads_path, date_to_file(date, 'ETTJ')),sep=";", encoding='ANSI')
-    ETTJ = clean(ETTJ, 'ETTJ')
+    ETTJ, Lixo = clean(ETTJ, 'ETTJ')
 
     global RATING
     RATING = pd.read_excel(os.path.join(downloads_path, "Rating.xlsx"))
+    RATING, dt_rate = clean(RATING, 'RATING')
 
     global INCENT
     INCENT = pd.read_excel(os.path.join(downloads_path, "003. Debêntures Incentivadas v01.xlsx"), skiprows=2)
@@ -188,19 +209,21 @@ def source(dt: str):
     CONVEN = pd.read_excel(os.path.join(downloads_path, "004. Debêntures Convencionais v01.xlsx"))
 
     global BDINFRA_path 
-    BDINFRA_path = os.path.join(downloads_path, "BD Infra - Secundário - Copia.xlsx")
+    BDINFRA_path = os.path.join(downloads_path, "BD Infra - Secundário.xlsx")
 
-    return DATA_DEB, IMAB, REUNE, TAXAS_IPCA, TAXAS_CDI, TAXAS_PCT_CDI, ETTJ, RATING, INCENT, CONVEN
+    return dt_rate
 
-def fill_sheets() -> None:
+def fill_sheets(dt_rat) -> None:
     """
         Preenchimento das sheets disponíveis
+
+        :param dt_rat: Data a ser utilizada na sheet de Rating
     """
     print('Início do processo de preenchimento das sheets')
 
     wis_cadastro()
+    wis_rating(dt_rat)
     wis_cadastro_infra()
-    wis_rating()
     wis_ipca_anbima()
     wis_ipca_mercado()
     wis_cdi_anbima()
@@ -217,9 +240,7 @@ def wis_cadastro() -> None:
 
     print('Populando planilha Cadastro...')
     
-    global REUNE
-    global TAXAS_IPCA
-    global TAXAS_CDI
+    global DATA_DEB
     global INCENT
     global CONVEN
     global BDINFRA_path
@@ -227,16 +248,46 @@ def wis_cadastro() -> None:
     sheet = 'Cadastro' # Selecionando a sheet a ser manipulada
 
     df = pd.read_excel(BDINFRA_path, sheet_name=sheet)
-    df = df[df['Ticker'].notna()] # Retira possíveis vazios
-    
+    df = df[df['Ticker'].notna()] # Retira possíveis vazios    
+
     aux = pd.DataFrame(columns=df.columns)
     for idx_row, row in DATA_DEB.iterrows():
-        # Checa se o ticker não está presente na sheet
-        if not (row['CodigodoAtivo'] in list(df['Ticker'])):
+
+        # Realizando ajustes para determinação se IPCA, CDI ou %CDI
+        if (row['indice'] == 'DI') and (row['PercentualMultiplicador/Rentabilidade'] == '100'):
+            ind = 'CDI'
+        elif (row['indice'] == 'DI') and (row['PercentualMultiplicador/Rentabilidade'] != '100'):
+            ind = '%CDI'
+        else:
+            ind = row['indice']
+
+        # Atualização de linhas do cadastro
+        if row['CodigodoAtivo'] in list(df['Ticker']):
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Ticker']] = row['CodigodoAtivo']
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Emissor']] = row['Empresa']
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Índice']] = ind
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Data de Saida/Nova Data de Vencimento']] = row['DatadeSaida/NovoVencimento']
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Garantia/Especie']] = row['Garantia/Especie']
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Valor Nominal na Emissão']] = row['ValorNominalnaEmissao']
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Percentual Multiplicador/Rentabilidade']] = row['PercentualMultiplicador/Rentabilidade']
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['CNPJ']] = row['CNPJ']
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Deb. Incentivada (Lei12.431)']] = row['Deb.Incent.(Lei12.431)']
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Resgate Antecipado']] = row['ResgateAntecipado']
+              
+        # Inserção de novos Tickers no cadastro
+        else:
             # Determina se o ticker pertecente à infraestrutura ou não
-            infra = 0
             if (row['CodigodoAtivo'] in list(INCENT['Ativo'])) or (row['CodigodoAtivo'] in list(CONVEN['Ativo'])):
                 infra = 1
+            else:  
+                file = open('ativos_fora.txt', 'a+') # Colocando na lista de tickers que não foram avaliados ainda
+                atv_out = file.readlines()
+                if not (row['CodigodoAtivo'] in list(atv_out)): 
+                    print('Ola')
+                    file.write(str(row['CodigodoAtivo']) + '\n') # Problema ao escrever
+                file.close()
+                infra = 0
+
             # Preenchimento das colunas
             aux = aux.append({
                 'Ticker': row['CodigodoAtivo'], 
@@ -245,13 +296,19 @@ def wis_cadastro() -> None:
                 'Data de Saida/Nova Data de Vencimento': row['DatadeSaida/NovoVencimento'],
                 'Garantia/Especie': row['Garantia/Especie'], 
                 'Valor Nominal na Emissão': row['ValorNominalnaEmissao'],
-                'Índice': row['indice'], 
+                'Índice': ind, 
                 'Percentual Multiplicador/Rentabilidade': row['PercentualMultiplicador/Rentabilidade'],
                 'CNPJ': row['CNPJ'],
                 'Deb. Incentivada (Lei12.431)': row['Deb.Incent.(Lei12.431)'],
                 'Resgate Antecipado': row['ResgateAntecipado']}, ignore_index=True)
 
     df = df.append(aux, ignore_index=True) # Junta os dados novos com os antigos
+
+    # Garatindo que todas as do mesmo emissor estão inclusas em Infraestrutura
+    aux = df
+    for emissor, df_aux in aux.groupby('Emissor'):
+        if (df_aux['Infraestrutura'] == 1).any():
+            df.loc[aux['Emissor'] == emissor, ['Infraestrutura']] = 1
 
     clear_sheet(sheet) # Limpa a sheet com os dados antigos
     pandas_to_excel(sheet, df) # Preenche a sheet com os dados antigos e novos
@@ -275,6 +332,9 @@ def wis_cadastro_infra() -> None:
     df_cad = pd.read_excel(BDINFRA_path, sheet_name='Cadastro')
     df_cad = df_cad[df_cad['Infraestrutura'] == 1] # Seleciona as rows somente das que forem de infra
 
+    df_rat = pd.read_excel(BDINFRA_path, sheet_name='Rating')
+    df_rat = df_rat.iloc[1:] # Retira as explicações de cada célula
+
     df = pd.read_excel(BDINFRA_path, sheet_name=sheet)
     df = df[df['Ticker'].notna()] # Retira possíveis vazios
 
@@ -285,7 +345,6 @@ def wis_cadastro_infra() -> None:
 
             indexador = np.nan
             incentivada = np.nan
-            emissor = np.nan
             setor = np.nan
             subsetor = np.nan
             ag_rat = np.nan
@@ -295,11 +354,11 @@ def wis_cadastro_infra() -> None:
                 indexador = 'IPCA'
                 incentivada = 1
             # Checa se o ticker está é CDI
-            elif (row['Índice'] == 'DI') and (row['Percentual Multiplicador/Rentabilidade'] == '100'): 
+            elif row['Índice'] == 'CDI': 
                 indexador = 'CDI'
                 incentivada = 0
             # Checa se o ticker está é PCT_CDI
-            elif (row['Índice'] == 'DI') and (row['Percentual Multiplicador/Rentabilidade'] != '100'): 
+            elif row['Índice'] == '%CDI': 
                 indexador = '%CDI'
                 incentivada = 0
 
@@ -312,10 +371,11 @@ def wis_cadastro_infra() -> None:
                 setor = CONVEN[CONVEN['Ativo'] == row['Ticker']]['Setor'].iloc[0]
                 subsetor = CONVEN[CONVEN['Ativo'] == row['Ticker']]['Subsetor'].iloc[0]
 
-            # Checa se o ticker está na planilha RATING para preencher Agência e Rating
-            if row['Ticker'] in list(RATING['Emissor']):
-                ag_rat = RATING[RATING['Emissor'] == row['Ticker']]['Agência'].iloc[0]
-                rat_emi = RATING[RATING['Emissor'] == row['Ticker']]['Rating'].iloc[0]
+            # Checa se o ticker está na planilha Rating para preencher Agência e Rating
+            if row['Ticker'] in list(df_rat['Ticker']):
+                dt_eval = df_rat[df_rat['Ticker'] == row['Ticker']].sort_values('Dia')['Dia'].iloc[0]
+                ag_rat = df_rat[(df_rat['Ticker'] == row['Ticker']) & (df_rat['Dia'] == dt_eval)]['Agência de Rating'].iloc[0]
+                rat_emi = df_rat[(df_rat['Ticker'] == row['Ticker']) & (df_rat['Dia'] == dt_eval)]['Rating'].iloc[0]
 
             # Chega para não colocar uma row vazia
             if (indexador != np.nan):
@@ -337,16 +397,17 @@ def wis_cadastro_infra() -> None:
     clear_sheet(sheet) # Limpa a sheet com os dados antigos
     pandas_to_excel(sheet, df) # Preenche a sheet com os dados antigos e novos
 
-def wis_rating() -> None:
+def wis_rating(dt_rat) -> None:
     """
         Função para preenchimento das células na planilha Rating
+
+        :param dt_rat: Data a ser utilizada na sheet de Rating
     """
 
     print('Populando planilha Rating...')
 
     global RATING
     global BDINFRA_path
-    global date
 
     sheet = 'Rating' # Selecionando a sheet a ser manipulada
 
@@ -355,12 +416,11 @@ def wis_rating() -> None:
 
     df = pd.read_excel(BDINFRA_path, sheet_name=sheet)
     df = df[df['Ticker'].notna()] # Retira possíveis vazios
-
+    
     aux = pd.DataFrame(columns=df.columns)
     for idx_row, row in df_cad.iterrows():
         # Checa se o ticker não está presente na sheet ou se, estando, está sendo uma data diferente para popular
-        if (not (row['Ticker'] in list(df['Ticker']))) or (not (date in list(df[df['Ticker'] == row['Ticker']]['Dia']))):
-            
+        if (not (row['Ticker'] in list(df['Ticker']))) or (not (dt_rat in list(df[df['Ticker'] == row['Ticker']]['Dia']))):
             ag_ret = np.nan
             rat = np.nan
             rat_eq = np.nan
@@ -371,7 +431,7 @@ def wis_rating() -> None:
                 rat_eq = RATING[RATING['Emissor'] == row['Ticker']]['Rating Equivalente'].iloc[0]
                 # Preenchimento das colunas
                 aux = aux.append({
-                    'Dia': date,
+                    'Dia': dt_rat,
                     'Ticker': row['Ticker'], 
                     'Agência de Rating': ag_ret,
                     'Rating': rat,
@@ -551,7 +611,7 @@ def wis_cdi_anbima() -> None:
     sheet = 'CDI - ANBIMA' # Selecionando a sheet a ser manipulada
 
     df_cad = pd.read_excel(BDINFRA_path, sheet_name='Cadastro')
-    df_cad = df_cad[(df_cad['Índice'] == 'DI') & (df_cad['Percentual Multiplicador/Rentabilidade'] == '100')] # Seleciona as rows somente das que forem com o indexador em CDI
+    df_cad = df_cad[df_cad['Índice'] == 'CDI'] # Seleciona as rows somente das que forem com o indexador em CDI
 
     df = pd.read_excel(BDINFRA_path, sheet_name=sheet)
     df = df[df['Ticker'].notna()] # Retira possíveis vazios
@@ -604,7 +664,7 @@ def wis_cdi_mercado() -> None:
     sheet = 'CDI - Mercado' # Selecionando a sheet a ser manipulada
 
     df_cad = pd.read_excel(BDINFRA_path, sheet_name='Cadastro')
-    df_cad = df_cad[(df_cad['Índice'] == 'DI') & (df_cad['Percentual Multiplicador/Rentabilidade'] == '100')] # Seleciona as rows somente das que forem com o indexador em CDI
+    df_cad = df_cad[df_cad['Índice'] == 'CDI'] # Seleciona as rows somente das que forem com o indexador em CDI
 
     df = pd.read_excel(BDINFRA_path, sheet_name=sheet)
     df = df[df['Ticker'].notna()] # Retira possíveis vazios
@@ -661,7 +721,7 @@ def wis_pct_cdi_anbima() -> None:
     sheet = '%CDI - ANBIMA' # Selecionando a sheet a ser manipulada
 
     df_cad = pd.read_excel(BDINFRA_path, sheet_name='Cadastro')
-    df_cad = df_cad[(df_cad['Índice'] == 'DI') & (df_cad['Percentual Multiplicador/Rentabilidade'] != '100')] # Seleciona as rows somente das que forem com o indexador em %CDI
+    df_cad = df_cad[df_cad['Índice'] == '%CDI'] # Seleciona as rows somente das que forem com o indexador em %CDI
 
     df = pd.read_excel(BDINFRA_path, sheet_name=sheet)
     df = df[df['Ticker'].notna()] # Retira possíveis vazios
@@ -685,8 +745,9 @@ def wis_pct_cdi_anbima() -> None:
             # Checa se o ticker está nas planilha TAXAS_PCT_CDI
             if row['Ticker'] in list(TAXAS_PCT_CDI['Código']):
                 ticker = row['Ticker']
-                taxa_emi = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['Nome'].iloc[0]
+                taxa_emi = row['Percentual Multiplicador/Rentabilidade']
                 pu_anbima = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['PU'].iloc[0]
+                pu_anbima = pu_anbima if pu_anbima != 'N/D' else np.nan 
                 durat_anbima = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['Duration'].iloc[0]
                 durat_anbima = int(durat_anbima) if durat_anbima != 'N/D' else np.nan
                 taxa_anbima = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['Taxa Indicativa'].iloc[0]
@@ -733,7 +794,7 @@ def wis_pct_cdi_mercado() -> None:
     sheet = '%CDI - Mercado' # Selecionando a sheet a ser manipulada
 
     df_cad = pd.read_excel(BDINFRA_path, sheet_name='Cadastro')
-    df_cad = df_cad[(df_cad['Índice'] == 'DI') & (df_cad['Percentual Multiplicador/Rentabilidade'] != '100')] # Seleciona as rows somente das que forem com o indexador em %CDI
+    df_cad = df_cad[df_cad['Índice'] == '%CDI'] # Seleciona as rows somente das que forem com o indexador em %CDI
 
     df = pd.read_excel(BDINFRA_path, sheet_name=sheet)
     df = df[df['Ticker'].notna()] # Retira possíveis vazios
@@ -757,7 +818,7 @@ def wis_pct_cdi_mercado() -> None:
             # Checa se o ticker está nas planilha REUNE
             if row['Ticker'] in list(REUNE['CETIP']):
                 ticker = row['Ticker']
-                taxa_emi = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['Nome'].iloc[0] if row['Ticker'] in list(TAXAS_PCT_CDI['Código']) else np.nan
+                taxa_emi = row['Percentual Multiplicador/Rentabilidade']
                 vol_neg = REUNE[REUNE['CETIP'] == row['Ticker']]['Faixa de Volume'].iloc[0]
                 pu_mercado = float(REUNE[REUNE['CETIP'] == row['Ticker']]['Preço Médio'].iloc[0])
                 durat_mercado = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['Duration'].iloc[0] if row['Ticker'] in list(TAXAS_PCT_CDI['Código']) else 'N/D'

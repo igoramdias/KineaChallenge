@@ -280,12 +280,6 @@ def wis_cadastro() -> None:
             if (row['CodigodoAtivo'] in list(INCENT['Ativo'])) or (row['CodigodoAtivo'] in list(CONVEN['Ativo'])):
                 infra = 1
             else:  
-                file = open('ativos_fora.txt', 'a+') # Colocando na lista de tickers que não foram avaliados ainda
-                atv_out = file.readlines()
-                if not (row['CodigodoAtivo'] in list(atv_out)): 
-                    print('Ola')
-                    file.write(str(row['CodigodoAtivo']) + '\n') # Problema ao escrever
-                file.close()
                 infra = 0
 
             # Preenchimento das colunas

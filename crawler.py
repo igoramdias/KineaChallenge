@@ -1,4 +1,3 @@
-# Importação de biblioteca
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -8,7 +7,7 @@ from time import sleep
 import os
 import pandas as pd
 import numpy as np
-from datetime import date
+from datetime import date 
 
 def date_to_file(dt: str, type: str) -> str:
     """
@@ -21,12 +20,12 @@ def date_to_file(dt: str, type: str) -> str:
     dt = dt.split('/') # Retira os chars /
 
     # Criação dos nome dos files de acordo com a data o tipo passado
-    if (type == 'IPCA') or (type == 'CDI') or (type == '%CDI'): 
+    if type == 'TAXAS': 
         mes = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
         file = 'd'+dt[2][-2:]+mes[int(dt[1])]+dt[0]+'.xls'
 
     if type == 'REUNE':
-        file = 'REUNE_Acumulada_'+''.join(dt)+'.csv' #Mudar para Acumulado dps
+        file = 'REUNE_Acumulada_'+''.join(dt)+'.csv' 
 
     if type == 'IMAB':
         file = 'IMA_'+''.join(dt)+'.csv'
@@ -36,8 +35,16 @@ def date_to_file(dt: str, type: str) -> str:
     
     return file # Retorna o nome do file
 
+def switch_day_month(dt: str):
+    """
+        Troca as posições do mês com o dia na data
+    """
 
-def crawl_data(star_date, end_date) -> None:
+    new_dt = dt[3:5] + '/' + dt[0:2] + '/' + dt[6:10]
+
+    return new_dt
+
+def crawl_data(star_date: str, end_date: str) -> None:
     """
         Função para realizar a coleta de dados de REUNE e IMAB
 
@@ -56,23 +63,26 @@ def crawl_data(star_date, end_date) -> None:
     downloads_path = os.path.expanduser(downloads_path)
 
     chrome_options = Options()
-    #chrome_options.add_argument('--headless') # Define se quer ou não visualizar o browser
+    #chrome_options.add_argument('--headless')
 
     driver = webdriver.Chrome(
         executable_path=os.path.join(downloads_path, "chromedriver.exe"), options=chrome_options
     )
 
+
+    star_date = switch_day_month(star_date)
+    end_date = switch_day_month(end_date)
     list_dt = [date.strftime(dt, '%d/%m/%Y') for dt in pd.bdate_range(start=star_date, end=end_date)]
 
     # Fazer um loop de datas aqui
     for dia in list_dt:
-    
-        new_dir = os.path.join(downloads_path, "{}".format(dia.replace('/', ''))) # Cria a nova pasta
+        
+        new_dir = os.path.join(downloads_path, "{}".format(dia.replace('/', ''))) 
         os.mkdir(new_dir)
         for src in sources:
-            # Entra se tiver num intervalo de 5 dias úteis
-            if np.busday_count(pd.to_datetime(dia, dayfirst=True).date(), pd.to_datetime(date.today()).date()) <= 5: 
-                if src in ['IMAB', 'TAXAS', 'ETTJ', 'DEB']:
+
+            if np.busday_count(pd.to_datetime(dia, dayfirst=True).date(), pd.to_datetime(date.today()).date()) <= 5:
+                if src in ['IMAB', 'TAXAS', 'ETTJ']:
                     driver.get(sources[src])
                     if src == 'IMAB':
                         print('Acessando site do IMAB para o dia {}...'.format(dia))
@@ -97,19 +107,20 @@ def crawl_data(star_date, end_date) -> None:
                         print('Acessando site de TAXAS para o dia {}...'.format(dia))
 
                         WebDriverWait(driver, 10).until(
-                            EC.frame_to_be_available_and_switch_to_it((By.NAME,"Dt_Ref"))
+                            EC.presence_of_element_located((By.NAME,"Dt_Ref"))
                         )
                         
                         driver.execute_script("document.getElementsByName('Dt_Ref')[0].value = '{}'".format(dia)) # Define tipo de arquivo
+                        driver.execute_script("document.getElementsByName('Consultar')[0].click()") # Realiza a consulta
                         
                         WebDriverWait(driver, 10).until(
-                            EC.frame_to_be_available_and_switch_to_it((By.CLASS_NAME,"linkinterno"))
+                            EC.presence_of_element_located((By.CLASS_NAME,"linkinterno"))
                         )
 
                         driver.execute_script("document.getElementsByClassName('linkinterno')[2].click()") # Realiza a consulta
                         
-                        ant_file = os.path.join(downloads_path, date_to_file(dia, 'ETTJ'))
-                        new_file = os.path.join(new_dir, date_to_file(dia, 'ETTJ'))
+                        ant_file = os.path.join(downloads_path, date_to_file(dia, 'TAXAS'))
+                        new_file = os.path.join(new_dir, date_to_file(dia, 'TAXAS'))
 
                         print('Coleta concluída!')
                     
@@ -129,8 +140,7 @@ def crawl_data(star_date, end_date) -> None:
                         new_file = os.path.join(new_dir, date_to_file(dia, 'ETTJ'))
 
                         print('Coleta concluída!')
-
-                    # Realiza a mudança de local dos aqruivos
+                
                     while not os.path.exists(ant_file):
                         sleep(1)
 
@@ -141,7 +151,6 @@ def crawl_data(star_date, end_date) -> None:
                 else:
                     pass
 
-            # Não depende de limite de dias úteis
             if src == 'REUNE':
                 driver.get(sources[src])
 

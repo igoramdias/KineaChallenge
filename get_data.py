@@ -269,6 +269,7 @@ def wis_cadastro() -> None:
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Data de Saida/Nova Data de Vencimento']] = row['DatadeSaida/NovoVencimento']
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Garantia/Especie']] = row['Garantia/Especie']
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Valor Nominal na Emissão']] = row['ValorNominalnaEmissao']
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Quantidade no Mercado']] = row['QuantidadeemMercado']
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Percentual Multiplicador/Rentabilidade']] = row['PercentualMultiplicador/Rentabilidade']
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['CNPJ']] = row['CNPJ']
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Deb. Incentivada (Lei12.431)']] = row['Deb.Incent.(Lei12.431)']
@@ -279,8 +280,15 @@ def wis_cadastro() -> None:
             # Determina se o ticker pertecente à infraestrutura ou não
             if (row['CodigodoAtivo'] in list(INCENT['Ativo'])) or (row['CodigodoAtivo'] in list(CONVEN['Ativo'])):
                 infra = 1
+                if row['CodigodoAtivo'] in list(INCENT['Ativo']):
+                    kinea = INCENT[INCENT['Ativo'] == row['CodigodoAtivo']]['Kinea'].iloc[0]
+                    kinea = kinea if kinea != np.nan else 0
+                else: 
+                    kinea = CONVEN[CONVEN['Ativo'] == row['CodigodoAtivo']]['Kinea'].iloc[0] 
+                    kinea = kinea if kinea != np.nan else 0
             else:  
                 infra = 0
+                kinea = 0
 
             # Preenchimento das colunas
             aux = aux.append({
@@ -290,11 +298,13 @@ def wis_cadastro() -> None:
                 'Data de Saida/Nova Data de Vencimento': row['DatadeSaida/NovoVencimento'],
                 'Garantia/Especie': row['Garantia/Especie'], 
                 'Valor Nominal na Emissão': row['ValorNominalnaEmissao'],
+                'Quantidade no Mercado': row['QuantidadeemMercado'],
                 'Índice': ind, 
                 'Percentual Multiplicador/Rentabilidade': row['PercentualMultiplicador/Rentabilidade'],
                 'CNPJ': row['CNPJ'],
                 'Deb. Incentivada (Lei12.431)': row['Deb.Incent.(Lei12.431)'],
-                'Resgate Antecipado': row['ResgateAntecipado']}, ignore_index=True)
+                'Resgate Antecipado': row['ResgateAntecipado'],
+                'Kinea': kinea}, ignore_index=True)
 
     df = df.append(aux, ignore_index=True) # Junta os dados novos com os antigos
 

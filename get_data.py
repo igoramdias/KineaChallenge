@@ -261,6 +261,8 @@ def wis_cadastro() -> None:
         else:
             ind = row['indice']
 
+        perct = row['PercentualMultiplicador/Rentabilidade'] if row['PercentualMultiplicador/Rentabilidade'] != ' -' else np.nan
+
         # Atualização de linhas do cadastro
         if row['CodigodoAtivo'] in list(df['Ticker']):
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Ticker']] = row['CodigodoAtivo']
@@ -270,7 +272,7 @@ def wis_cadastro() -> None:
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Garantia/Especie']] = row['Garantia/Especie']
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Valor Nominal na Emissão']] = row['ValorNominalnaEmissao']
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Quantidade no Mercado']] = row['QuantidadeemMercado']
-            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Percentual Multiplicador/Rentabilidade']] = row['PercentualMultiplicador/Rentabilidade']
+            df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Percentual Multiplicador/Rentabilidade']] = perct
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['CNPJ']] = row['CNPJ']
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Deb. Incentivada (Lei12.431)']] = row['Deb.Incent.(Lei12.431)']
             df.loc[df['Ticker'] == row['CodigodoAtivo'], ['Resgate Antecipado']] = row['ResgateAntecipado']
@@ -290,6 +292,8 @@ def wis_cadastro() -> None:
                 infra = 0
                 kinea = 0
 
+            perct = row['PercentualMultiplicador/Rentabilidade'] if row['PercentualMultiplicador/Rentabilidade'] != ' -' else np.nan
+
             # Preenchimento das colunas
             aux = aux.append({
                 'Ticker': row['CodigodoAtivo'], 
@@ -300,7 +304,7 @@ def wis_cadastro() -> None:
                 'Valor Nominal na Emissão': row['ValorNominalnaEmissao'],
                 'Quantidade no Mercado': row['QuantidadeemMercado'],
                 'Índice': ind, 
-                'Percentual Multiplicador/Rentabilidade': row['PercentualMultiplicador/Rentabilidade'],
+                'Percentual Multiplicador/Rentabilidade': perct,
                 'CNPJ': row['CNPJ'],
                 'Deb. Incentivada (Lei12.431)': row['Deb.Incent.(Lei12.431)'],
                 'Resgate Antecipado': row['ResgateAntecipado'],

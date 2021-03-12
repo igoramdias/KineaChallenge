@@ -4,6 +4,7 @@ import numpy as np
 import openpyxl
 from openpyxl.utils.dataframe import dataframe_to_rows
 import datetime
+from datetime import date 
 from typing import Tuple
 
 global DATA_DEB
@@ -405,7 +406,7 @@ def wis_cadastro_infra() -> None:
     clear_sheet(sheet) # Limpa a sheet com os dados antigos
     pandas_to_excel(sheet, df) # Preenche a sheet com os dados antigos e novos
 
-def wis_rating(dt_rat) -> None:
+def wis_rating(dt_rat: pd.Timestamp) -> None:
     """
         Função para preenchimento das células na planilha Rating
 
@@ -439,7 +440,7 @@ def wis_rating(dt_rat) -> None:
                 rat_eq = RATING[RATING['Emissor'] == row['Ticker']]['Rating Equivalente'].iloc[0]
                 # Preenchimento das colunas
                 aux = aux.append({
-                    'Dia': dt_rat,
+                    'Dia': str(dt_rat.date())[-2:] + '/' + str(dt_rat.date())[5:7] + '/' + str(dt_rat.date())[0:4],
                     'Ticker': row['Ticker'], 
                     'Agência de Rating': ag_ret,
                     'Rating': rat,
@@ -491,7 +492,7 @@ def wis_ipca_anbima() -> None:
                 ticker = row['Ticker']
                 pu_anbima = TAXAS_IPCA[TAXAS_IPCA['Código'] == row['Ticker']]['PU'].iloc[0]
                 pu_anbima = pu_anbima if pu_anbima != 'N/D' else np.nan
-                taxa_anbima = TAXAS_IPCA[TAXAS_IPCA['Código'] == row['Ticker']]['Taxa Indicativa'].iloc[0]
+                taxa_anbima = TAXAS_IPCA[TAXAS_IPCA['Código'] == row['Ticker']]['Taxa Indicativa'].iloc[0]/100
                 durat_anbima = TAXAS_IPCA[TAXAS_IPCA['Código'] == row['Ticker']]['Duration'].iloc[0] 
                 durat_anbima = int(durat_anbima) if durat_anbima != 'N/D' else np.nan
                 # Caso tenha um valor para duration
@@ -501,13 +502,13 @@ def wis_ipca_anbima() -> None:
                     # Filta a data de vencimento correspondente
                     ntnb_ref_anbima_date = IMAB[IMAB['Duration (d.u.)'] == durat_ref_ntnb]['Data  de Vencimento'].iloc[0]
                     # Filta a taxa indicativa correspondente
-                    ntnb_ref_anbima_tax = float(IMAB[IMAB['Duration (d.u.)'] == durat_ref_ntnb]['Taxa Indicativa (% a.a.)'].iloc[0])
+                    ntnb_ref_anbima_tax = float(IMAB[IMAB['Duration (d.u.)'] == durat_ref_ntnb]['Taxa Indicativa (% a.a.)'].iloc[0])/100
                     # Cálculo do spread entre anbima e ntnb
-                    spread_anbima_ntnb = (1+taxa_anbima)/(1+ntnb_ref_anbima_tax) - 1
+                    spread_anbima_ntnb = ((1+taxa_anbima)/(1+ntnb_ref_anbima_tax) - 1)
                     # Interpolação entre os durations de ettj e suas taxas ettj ipca e o duration usado
-                    ettj_ref_anbima_tax = np.interp(durat_anbima, np.array(ETTJ['Vertices']).astype(int), np.array(ETTJ['ETTJ IPCA']).astype(float))
+                    ettj_ref_anbima_tax = np.interp(durat_anbima, np.array(ETTJ['Vertices']).astype(int), np.array(ETTJ['ETTJ IPCA']).astype(float))/100
                     # Cálculo do spread entre anbima e ettj
-                    spread_anbima_ettj = (1+taxa_anbima)/(1+ettj_ref_anbima_tax) - 1
+                    spread_anbima_ettj = ((1+taxa_anbima)/(1+ettj_ref_anbima_tax) - 1)
                 # Preenchimento das colunas
                 aux = aux.append({
                     'Ticker': ticker,
@@ -568,7 +569,7 @@ def wis_ipca_mercado() -> None:
                 vol_neg =  REUNE[REUNE['CETIP'] == row['Ticker']]['Faixa de Volume'].iloc[0]
                 pu_mercado = float(REUNE[REUNE['CETIP'] == row['Ticker']]['Preço Médio'].iloc[0])
                 taxa_mercado = REUNE[REUNE['CETIP'] == row['Ticker']]['Taxa Média'].iloc[0]
-                taxa_mercado = float(taxa_mercado) if taxa_mercado != '--' else np.nan
+                taxa_mercado = float(taxa_mercado)/100 if taxa_mercado != '--' else np.nan
                 # Por enquanto, utilizando o duration da ANBIMA
                 durat_mercado = TAXAS_IPCA[TAXAS_IPCA['Código'] == row['Ticker']]['Duration'].iloc[0] if row['Ticker'] in list(TAXAS_IPCA['Código']) else 'N/D'
                 durat_mercado = int(durat_mercado) if durat_mercado != 'N/D' else np.nan 
@@ -579,13 +580,13 @@ def wis_ipca_mercado() -> None:
                     # Filta a data de vencimento correspondente
                     ntnb_ref_mercado_date = IMAB[IMAB['Duration (d.u.)'] == durat_ref_ntnb]['Data  de Vencimento'].iloc[0]
                     # Filta a taxa indicativa correspondente
-                    ntnb_ref_mercado_tax = float(IMAB[IMAB['Duration (d.u.)'] == durat_ref_ntnb]['Taxa Indicativa (% a.a.)'].iloc[0])
+                    ntnb_ref_mercado_tax = float(IMAB[IMAB['Duration (d.u.)'] == durat_ref_ntnb]['Taxa Indicativa (% a.a.)'].iloc[0])/100
                     # Cálculo do spread entre mercado e ntnb
-                    spread_mercado_ntnb = (1+taxa_mercado)/(1+ntnb_ref_mercado_tax) - 1
+                    spread_mercado_ntnb = ((1+taxa_mercado)/(1+ntnb_ref_mercado_tax) - 1)
                     # Interpolação entre os durations de ettj e suas taxas ettj ipca e o duration usado
-                    ettj_ref_mercado_tax = np.interp(durat_mercado, np.array(ETTJ['Vertices']).astype(int), np.array(ETTJ['ETTJ IPCA']).astype(float))
+                    ettj_ref_mercado_tax = np.interp(durat_mercado, np.array(ETTJ['Vertices']).astype(int), np.array(ETTJ['ETTJ IPCA']).astype(float))/100
                     # Cálculo do spread entre mercado e ettj
-                    spread_mercado_ettj = (1+taxa_mercado)/(1+ettj_ref_mercado_tax) - 1
+                    spread_mercado_ettj = ((1+taxa_mercado)/(1+ettj_ref_mercado_tax) - 1)
                 # Preenchimento das colunas
                 aux = aux.append({
                     'Ticker': ticker,
@@ -758,7 +759,7 @@ def wis_pct_cdi_anbima() -> None:
                 pu_anbima = pu_anbima if pu_anbima != 'N/D' else np.nan 
                 durat_anbima = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['Duration'].iloc[0]
                 durat_anbima = int(durat_anbima) if durat_anbima != 'N/D' else np.nan
-                taxa_anbima = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['Taxa Indicativa'].iloc[0]
+                taxa_anbima = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['Taxa Indicativa'].iloc[0]/100
                 # Caso tenha um valor de duration
                 if durat_anbima != np.nan:
                     # Valores nulos por enquanto
@@ -766,9 +767,9 @@ def wis_pct_cdi_anbima() -> None:
                     pre_ref_anbima_tax = np.nan
                     spread_anbima_pre = np.nan
                     # Interpolação entre os durations de ettj e seus taxas ettj pref e o duration usado
-                    ettj_ref_anbima_tax = np.interp(durat_anbima, np.array(ETTJ['Vertices']).astype(int), np.array(ETTJ['ETTJ PREF']).astype(float))
+                    ettj_ref_anbima_tax = np.interp(durat_anbima, np.array(ETTJ['Vertices']).astype(int), np.array(ETTJ['ETTJ PREF']).astype(float))/100
                     # Cálculo do spread entre anbima e ettj
-                    spread_anbima_ettj = (1+taxa_anbima)/(1+ettj_ref_anbima_tax) - 1
+                    spread_anbima_ettj = ((1+taxa_anbima)/(1+ettj_ref_anbima_tax) - 1)
                 # Preenchimento das colunas
                 aux = aux.append({
                     'Ticker': ticker,
@@ -832,7 +833,7 @@ def wis_pct_cdi_mercado() -> None:
                 durat_mercado = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['Duration'].iloc[0] if row['Ticker'] in list(TAXAS_PCT_CDI['Código']) else 'N/D'
                 durat_mercado = int(durat_mercado) if durat_mercado != 'N/D' else np.nan 
                 taxa_mercado = REUNE[REUNE['CETIP'] == row['Ticker']]['Taxa Média'].iloc[0]
-                taxa_mercado = float(taxa_mercado) if taxa_mercado != '--' else np.nan
+                taxa_mercado = float(taxa_mercado)/100 if taxa_mercado != '--' else np.nan
                 # Caso tenha um valor para duration e de taxa indicativa
                 if (durat_mercado != np.nan) and (taxa_mercado != np.nan):
                     # Valores nulos por enquanto
@@ -840,9 +841,9 @@ def wis_pct_cdi_mercado() -> None:
                     pre_ref_mercado_tax = np.nan
                     spread_mercado_pre = np.nan
                     # Interpolação entre os durations de ettj e seus taxas ettj pref e o duration usado
-                    ettj_ref_mercado_tax = np.interp(durat_mercado, np.array(ETTJ['Vertices']).astype(int), np.array(ETTJ['ETTJ PREF']).astype(float))
+                    ettj_ref_mercado_tax = np.interp(durat_mercado, np.array(ETTJ['Vertices']).astype(int), np.array(ETTJ['ETTJ PREF']).astype(float))/100
                     # Cálculo do spread entre mercado e ettj
-                    spread_mercado_ettj = (1+taxa_mercado)/(1+ettj_ref_mercado_tax) - 1
+                    spread_mercado_ettj = ((1+taxa_mercado)/(1+ettj_ref_mercado_tax) - 1)
                 # Preenchimento das colunas
                 aux = aux.append({
                     'Ticker': ticker,

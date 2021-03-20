@@ -44,9 +44,9 @@ def switch_day_month(dt: str):
 
     return new_dt
 
-def crawl_data(star_date: str, end_date: str) -> None:
+def crawl_data_week(star_date: str, end_date: str) -> None:
     """
-        Função para realizar a coleta de dados de REUNE e IMAB
+        Função para realizar a coleta de dados de REUNE, IMAB, ETTJ e TAXAS
 
         :param star_date: Dia inicial (útil ou não) ao qual começará a pedir os dados
         :param end_date: Dia final (útil ou não) ao qual terminará a pedir os dados
@@ -63,22 +63,25 @@ def crawl_data(star_date: str, end_date: str) -> None:
     downloads_path = os.path.expanduser(downloads_path)
 
     chrome_options = Options()
-    #chrome_options.add_argument('--headless')
 
     driver = webdriver.Chrome(
         executable_path=os.path.join(downloads_path, "chromedriver.exe"), options=chrome_options
     )
 
+    Feriados = list(pd.read_excel(os.path.join(downloads_path, "Feriados.xlsx"), header=None)[0])
+    Feriados = [str(d.date()) for d in Feriados]
 
     star_date = switch_day_month(star_date)
     end_date = switch_day_month(end_date)
-    list_dt = [date.strftime(dt, '%d/%m/%Y') for dt in pd.bdate_range(start=star_date, end=end_date)]
+    list_dt = [date.strftime(dt, '%d/%m/%Y') for dt in pd.bdate_range(start=star_date, end=end_date, freq='C', holidays=Feriados)]
 
     # Fazer um loop de datas aqui
     for dia in list_dt:
         
-        new_dir = os.path.join(downloads_path, "{}".format(dia.replace('/', ''))) 
-        os.mkdir(new_dir)
+        new_dir = os.path.join(downloads_path, "{}".format(dia.replace('/', '')))
+        if not (dia.replace('/','') in [file for file in os.listdir(downloads_path)]): 
+            os.mkdir(new_dir)
+
         for src in sources:
 
             if np.busday_count(pd.to_datetime(dia, dayfirst=True).date(), pd.to_datetime(date.today()).date()) <= 5:
@@ -94,7 +97,7 @@ def crawl_data(star_date: str, end_date: str) -> None:
                         driver.execute_script("document.getElementsByName('escolha')[1].click()") # Define tipo de visualização
                         driver.execute_script("document.getElementsByName('saida')[1].click()") # Define tipo de arquivo 
                         driver.execute_script("document.getElementsByName('indice')[4].click()") # Define indice de consulta
-                        driver.execute_script("document.getElementsByName('consulta')[0].click()") # Define tipo de consulta
+                        driver.execute_script("document.getElementsByName('consulta')[1].click()") # Define tipo de consulta
                         driver.execute_script("document.getElementsByName('Dt_Ref')[0].value = '{}'".format(dia)) # Define tipo de arquivo
                         driver.execute_script("document.getElementsByName('Consultar')[0].click()") # Realiza a consulta
                         
@@ -178,5 +181,53 @@ def crawl_data(star_date: str, end_date: str) -> None:
                     os.replace(ant_file, new_file)
                 else:
                     raise ValueError("%s isn't a file!" % ant_file)
+
+    driver.close()
+
+def crawl_data_today() -> None:
+    """
+        Função para realizar a coleta de dados de DEB
+    """
+    
+    source = "http://www.debentures.com.br/exploreosnd/consultaadados/emissoesdedebentures/caracteristicas_f.asp?tip_deb=publicas"
+
+    downloads_path = "~\Downloads"
+    downloads_path = os.path.expanduser(downloads_path)
+    
+    chrome_options = Options()
+
+    driver = webdriver.Chrome(
+        executable_path=os.path.join(downloads_path, "chromedriver.exe"), options=chrome_options
+    )
+    
+    dia = date.strftime(date.today(), '%d/%m/%Y')
+    
+    new_dir = os.path.join(downloads_path, "{}".format(dia.replace('/', '')))
+    if not (dia.replace('/','') in [file for file in os.listdir(downloads_path)]): 
+        os.mkdir(new_dir)
+    
+    driver.get(source)
+
+    print('Acessando site de Debênture.com.br para dia {}...'.format(dia))
+    
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME,"Ver11FF6600"))
+    )
+    
+    driver.execute_script("document.getElementsByClassName('Ver11FF6600')[0].click()") # Realiza a consulta
+
+    while len([file for file in os.listdir(downloads_path) if 'Debentures.com.br' in file]) == 0:
+        sleep(10)
+   
+    print('Coleta concluída!')
+    
+    DATA_DEB_path = str([file for file in os.listdir(downloads_path) if 'Debentures' in file][0])
+    ant_file = os.path.join(downloads_path, DATA_DEB_path)
+    new_file = os.path.join(new_dir, DATA_DEB_path)
+
+    if os.path.isfile(ant_file):
+        os.replace(ant_file, new_file)
+    else:
+        raise ValueError("%s isn't a file!" % ant_file)
 
     driver.close()

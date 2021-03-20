@@ -63,11 +63,13 @@ def date_to_file(dt: str, type: str) -> str:
         :param dt: Data a ser analisada
         :param type: Para qual documento será feito o ajuste
     """
-    
+
+    dt = dt.split('/') # Retira os chars /
+
     # Criação dos nome dos files de acordo com a data o tipo passado
     if (type == 'IPCA') or (type == 'CDI') or (type == '%CDI'): 
         mes = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
-        file = 'd'+dt[-2:]+mes[int(dt[2:4])]+dt[:2]+'.xls'
+        file = 'd'+dt[2][-2:]+mes[int(dt[1])]+dt[0]+'.xls'
 
     if type == 'REUNE':
         file = 'REUNE_Acumulada_'+''.join(dt)+'.csv'
@@ -77,7 +79,7 @@ def date_to_file(dt: str, type: str) -> str:
 
     if type == 'ETTJ':
         file = 'CurvaZero_'+''.join(dt)+'.csv'
-
+    
     return file # Retorna o nome do file
 
 def clean(df: pd.DataFrame , type: str) -> Tuple[pd.DataFrame, datetime.datetime]:
@@ -113,47 +115,18 @@ def clean(df: pd.DataFrame , type: str) -> Tuple[pd.DataFrame, datetime.datetime
         df = df.iloc[idx_srt+1:]
         df = df.reset_index(drop=True)
         df = df[df['Agrupamento'] != 'SUBTOTAL']
-        df['Taxa Média'] = df['Taxa Média'].str.replace(',', '.', regex=True)
-        df['Preço Médio'] = df['Preço Médio'].str.replace('.', '', regex=True)
-        df['Preço Médio'] = df['Preço Médio'].str.replace(',', '.', regex=True)
+        df['Taxa Média'] = df['Taxa Média'].str.replace(',', '.')
+        df['Preço Médio'] = df['Preço Médio'].str.replace('.', '')
+        df['Preço Médio'] = df['Preço Médio'].str.replace(',', '.')
 
-    if type == 'IMAB':
-        df = df.reset_index()
-        col_1 = list(df.columns)[0]
-        idx_srt = list(df.index[df[col_1].astype(str).str.contains('Data')])[0]
-        columns = pd.Series(list(df.iloc[idx_srt]))
-        columns = [col[:col.index('*')] if '*' in col else col for col in columns]
-        df.columns = columns
-        df = df.iloc[idx_srt+1:]
-        df = df.reset_index(drop=True) 
-        df['Duration (d.u.)'] = df['Duration (d.u.)'].str.replace('.', '', regex=True)
-        df['Taxa Indicativa (% a.a.)'] = df['Taxa Indicativa (% a.a.)'].str.replace(',', '.', regex=True)
-    
-    if type == 'ETTJ':
-        col_1 = list(df.columns)[0]
-        idx_srt = list(df.index[df[col_1] == 'Vertices'])[0]
-        df.columns = list(df.iloc[idx_srt])
-        df = df.iloc[idx_srt+1:]
-        df = df.drop(list(set(df.columns) - set(['Vertices', 'ETTJ IPCA', 'ETTJ PREF'])), axis = 1)
-        df = df.reset_index(drop=True)
-        df = df[df['Vertices'].notna()]
-        df['Vertices'] = df['Vertices'].str.replace('.', '', regex=True)
-        df['ETTJ IPCA'] = df['ETTJ IPCA'].str.replace(',', '.', regex=True)
-        df['ETTJ PREF'] = df['ETTJ PREF'].str.replace(',', '.', regex=True)
-        idx_end = list(df.index[~df['Vertices'].str.isdigit()])[0]
-        df = df.iloc[0:idx_end]
-    
+    if (type == 'TAXAS') or (type == 'ETTJ') or (type == 'IMAB'):
+        df.rename(columns={ df.columns[0]: "Tickers", df.columns[1]: "Tipo"}, inplace = True)
+        df.loc[:, ['Tickers']] = df.loc[:, ['Tickers']].ffill(axis=0)
+        df = df.set_index(['Tickers', 'Tipo'])
+
     if type == 'DATA_DEB':
-        df['Codigo do Ativo'] = df['Codigo do Ativo'].str.replace(' ','', regex=True)
-        df.columns = df.columns.str.replace(' ','', regex=True)
-
-    if type == 'Pre_REF':
-        df = df.rename(columns = {df.columns[0] : 'Data'})
-        df = df.iloc[1:]
-
-    if type == 'Feriados':
-        df = list(df[0])
-        df = [str(d.date()) for d in df]
+        df['Codigo do Ativo'] = df['Codigo do Ativo'].str.replace(' ','')
+        df.columns = df.columns.str.replace(' ','')
 
     dt_rat = None
     if type == 'RATING':
@@ -163,86 +136,61 @@ def clean(df: pd.DataFrame , type: str) -> Tuple[pd.DataFrame, datetime.datetime
 
     return df, dt_rat # Retorna o DataFrame já ajustado para análises
 
-def source(dt: str, get_rat: str) -> None:
+def source(dt: str):
     """
         Pegar base de dados crua
 
         :param str: Data para ser analisada
-        :param get_rat: Pegar a fonte da sheet Rating caso possua
     """
-
-    global date
-    date = "".join(dt.split('/'))
-
+    
     downloads_path = "~\Downloads"
     downloads_path = os.path.expanduser(downloads_path)
-    downloads_path = os.path.join(downloads_path, date)
+
+    global date
+    date = dt
 
     global DATA_DEB
-    DATA_DEB_path = str([file for file in os.listdir(downloads_path) if 'Debentures' in file][0])
-    DATA_DEB = pd.read_table(os.path.join(downloads_path, DATA_DEB_path), encoding='ANSI', skiprows=3)
+    DATA_DEB = pd.read_table(os.path.join(downloads_path, "Debentures.com.br_Caracteristica_em_03-03-2021_as_21-19-42.xls"), encoding='ANSI')
     DATA_DEB, Lixo  = clean(DATA_DEB, 'DATA_DEB')
 
-    global IMAB
-    IMAB = pd.read_csv(os.path.join(downloads_path, date_to_file(date, 'IMAB')), sep=";", encoding='ANSI')
-    IMAB, Lixo  = clean(IMAB, 'IMAB')
-
     global REUNE
-    REUNE = pd.read_csv(os.path.join(downloads_path, date_to_file(date, 'REUNE')),sep=";",header=2, encoding='ANSI')
+    REUNE = pd.read_csv(os.path.join(downloads_path, date_to_file(date, 'REUNE - 2019')))
     REUNE, Lixo = clean(REUNE, 'REUNE')
 
-    global TAXAS_IPCA
-    TAXAS_IPCA = pd.read_excel(os.path.join(downloads_path, date_to_file(date, 'IPCA')), sheet_name='IPCA_SPREAD')
-    TAXAS_IPCA, Lixo = clean(TAXAS_IPCA, 'IPCA')
+    global IMAB
+    IMAB = pd.read_csv(os.path.join(downloads_path, date_to_file(date, 'IMAB - 2019')))
+    IMAB, Lixo  = clean(IMAB, 'IMAB')
 
-    global TAXAS_CDI
-    TAXAS_CDI = pd.read_excel(os.path.join(downloads_path, date_to_file(date, 'CDI')), sheet_name='DI_SPREAD')
-    TAXAS_CDI, Lixo = clean(TAXAS_CDI, 'CDI')
-
-    global TAXAS_PCT_CDI
-    TAXAS_PCT_CDI = pd.read_excel(os.path.join(downloads_path, date_to_file(date, '%CDI')), sheet_name='DI_PERCENTUAL')
-    TAXAS_PCT_CDI, Lixo = clean(TAXAS_PCT_CDI, '%CDI')
+    global TAXAS
+    TAXAS = pd.read_excel(os.path.join(downloads_path, "Taxas - 2019.xlsx"))
+    TAXAS, Lixo  = clean(TAXAS, 'TAXAS')
 
     global ETTJ
     ETTJ = pd.read_csv(os.path.join(downloads_path, date_to_file(date, 'ETTJ')),sep=";", encoding='ANSI')
     ETTJ, Lixo = clean(ETTJ, 'ETTJ')
 
-    dt_rate = None
-    if get_rat == 'True':
-        global RATING
-        RATING = pd.read_excel(os.path.join(os.path.dirname(downloads_path), "Rating.xlsx"))
-        RATING, dt_rate = clean(RATING, 'RATING')
-
-    global Feriados
-    Feriados = pd.read_excel(os.path.join(os.path.dirname(downloads_path), "Feriados.xlsx"), header=None)
-    Feriados, Lixo = clean(Feriados, 'Feriados') 
+    global RATING
+    RATING = pd.read_excel(os.path.join(downloads_path, "Rating.xlsx"))
+    RATING, dt_rate = clean(RATING, 'RATING')
 
     global CLASS_DEB
-    CLASS_DEB = pd.read_excel(os.path.join(os.path.dirname(downloads_path), "Classificação Debêntures.xlsx"))
-
-    global Pre_REF
-    Pre_REF = pd.read_excel(os.path.join(os.path.dirname(downloads_path), "Pre Ref.xlsx"))
-    Pre_REF, Lixo = clean(Pre_REF, 'Pre_REF')
+    CLASS_DEB = pd.read_excel(os.path.join(downloads_path, "Classificação Debêntures.xlsx"))
 
     global BDINFRA_path 
-    BDINFRA_path = os.path.join(os.path.dirname(downloads_path), "BD Infra - Secundário.xlsx")
+    BDINFRA_path = os.path.join(downloads_path, "BD Infra - Secundário.xlsx")
 
-    date = date[:2] + '/' + date[2:4] + '/' + date[-4:]
+    return dt_rate
 
-    fill_sheets(dt_rate, get_rat)
-
-def fill_sheets(dt_rat: str, fill_rat: str) -> None:
+def fill_sheets(dt_rat) -> None:
     """
         Preenchimento das sheets disponíveis
 
         :param dt_rat: Data a ser utilizada na sheet de Rating
-        :param fill_rat: Preencher a sheet Rating caso possua 
     """
     print('Início do processo de preenchimento das sheets')
 
     wis_cadastro()
-    if fill_rat == 'True':
-        wis_rating(dt_rat) 
+    wis_rating(dt_rat)
     wis_cadastro_infra()
     wis_ipca_anbima()
     wis_ipca_mercado()
@@ -301,11 +249,13 @@ def wis_cadastro() -> None:
             # Determina se o ticker pertecente à infraestrutura ou não e à kinea ou não
             if row['Empresa'] in list(CLASS_DEB['Emissor']):
                 infra = CLASS_DEB[CLASS_DEB['Emissor'] == row['Empresa']]['Infraestrutura'].iloc[0]
+                kinea = CLASS_DEB[CLASS_DEB['Emissor'] == row['Empresa']]['Kinea'].iloc[0]
+                kinea = 0 if pd.isnull(kinea) else kinea
             else:  
                 infra = 0
+                kinea = 0
 
             perct = row['PercentualMultiplicador/Rentabilidade'] if row['PercentualMultiplicador/Rentabilidade'] != ' -' else np.nan
-            kinea = 0 # Por default, assume que não está presente na Kinea    
 
             # Preenchimento das colunas
             aux = aux.append({
@@ -438,6 +388,7 @@ def wis_rating(dt_rat: pd.Timestamp) -> None:
                     'Agência de Rating': ag_ret,
                     'Rating': rat,
                     'Rating Equivalente': rat_eq}, ignore_index=True)
+
 				
     df = df.append(aux, ignore_index=True) # Junta os dados novos com os antigos
 
@@ -717,12 +668,9 @@ def wis_pct_cdi_anbima() -> None:
 
     global TAXAS_PCT_CDI
     global BDINFRA_path
-    global Pre_REF
     global date
 
     sheet = '%CDI - ANBIMA' # Selecionando a sheet a ser manipulada
-
-    Pre_REF_dict = {'F': '01', 'G': '02', 'H': '03', 'J': '04', 'K': '05', 'M': '06', 'N': '07', 'Q': '08', 'U': '09', 'V': '10', 'X': '11', 'Z': '12'} # Conversão de letras e números
 
     df_cad = pd.read_excel(BDINFRA_path, sheet_name='Cadastro')
     df_cad = df_cad[df_cad['Índice'] == '%CDI'] # Seleciona as rows somente das que forem com o indexador em %CDI
@@ -757,17 +705,10 @@ def wis_pct_cdi_anbima() -> None:
                 taxa_anbima = TAXAS_PCT_CDI[TAXAS_PCT_CDI['Código'] == row['Ticker']]['Taxa Indicativa'].iloc[0]/100
                 # Caso tenha um valor de duration
                 if durat_anbima != np.nan:
-                    # Busca da data com intervalo em BDs mais próximo
-                    date_from = date[-4:] + '-' + date[3:5] + '-' + date[:2]
-                    dates_to = list(Pre_REF[Pre_REF['Data'] == date_from].dropna(axis=1).columns[1:])
-                    pre_ref_list = [] # Guarda o intervalo de BDs para todas as datas 
-                    for dt in dates_to:
-                        date_to = '20' + dt[-2:] + '-' + Pre_REF_dict[dt[-3:-2]] + '-01'
-                        pre_ref_list.append(np.busday_count(date_from, date_to, holidays = Feriados))
-                    pre_ref_col = np.array(dates_to)[(np.abs(np.array(pre_ref_list).astype(int) - durat_anbima)).argmin()] # Descobre data
-                    pre_ref_anbima_date = Pre_REF[Pre_REF['Data'] == date_from][pre_ref_col].iloc[0] # Taxa para determinado dia
-                    pre_ref_anbima_tax = taxa_anbima-1
-                    spread_anbima_pre = pre_ref_anbima_tax*pre_ref_anbima_date
+                    # Valores nulos por enquanto
+                    pre_ref_anbima_date = np.nan
+                    pre_ref_anbima_tax = np.nan
+                    spread_anbima_pre = np.nan
                     # Interpolação entre os durations de ettj e seus taxas ettj pref e o duration usado
                     ettj_ref_anbima_tax = np.interp(durat_anbima, np.array(ETTJ['Vertices']).astype(int), np.array(ETTJ['ETTJ PREF']).astype(float))/100
                     # Cálculo do spread entre anbima e ettj
@@ -804,8 +745,6 @@ def wis_pct_cdi_mercado() -> None:
 
     sheet = '%CDI - Mercado' # Selecionando a sheet a ser manipulada
 
-    Pre_REF_dict = {'F': '01', 'G': '02', 'H': '03', 'J': '04', 'K': '05', 'M': '06', 'N': '07', 'Q': '08', 'U': '09', 'V': '10', 'X': '11', 'Z': '12'} # Conversão de letras e números
-
     df_cad = pd.read_excel(BDINFRA_path, sheet_name='Cadastro')
     df_cad = df_cad[df_cad['Índice'] == '%CDI'] # Seleciona as rows somente das que forem com o indexador em %CDI
 
@@ -840,17 +779,10 @@ def wis_pct_cdi_mercado() -> None:
                 taxa_mercado = float(taxa_mercado)/100 if taxa_mercado != '--' else np.nan
                 # Caso tenha um valor para duration e de taxa indicativa
                 if (durat_mercado != np.nan) and (taxa_mercado != np.nan):
-                    # Busca da data com intervalo em BDs mais próximo
-                    date_from = date[-4:] + '-' + date[3:5] + '-' + date[:2]
-                    dates_to = list(Pre_REF[Pre_REF['Data'] == date_from].dropna(axis=1).columns[1:])
-                    pre_ref_list = [] # Guarda o intervalo de BDs para todas as datas 
-                    for dt in dates_to:
-                        date_to = '20' + dt[-2:] + '-' + Pre_REF_dict[dt[-3:-2]] + '-01'
-                        pre_ref_list.append(np.busday_count(date_from, date_to, holidays = Feriados))
-                    pre_ref_col = np.array(dates_to)[(np.abs(np.array(pre_ref_list).astype(int) - durat_mercado)).argmin()] # Descobre data
-                    pre_ref_mercado_date = Pre_REF[Pre_REF['Data'] == date_from][pre_ref_col].iloc[0] # Taxa para determinado dia
-                    pre_ref_mercado_tax = taxa_mercado-1
-                    spread_mercado_pre = pre_ref_mercado_date*pre_ref_mercado_tax
+                    # Valores nulos por enquanto
+                    pre_ref_mercado_date = np.nan
+                    pre_ref_mercado_tax = np.nan
+                    spread_mercado_pre = np.nan
                     # Interpolação entre os durations de ettj e seus taxas ettj pref e o duration usado
                     ettj_ref_mercado_tax = np.interp(durat_mercado, np.array(ETTJ['Vertices']).astype(int), np.array(ETTJ['ETTJ PREF']).astype(float))/100
                     # Cálculo do spread entre mercado e ettj

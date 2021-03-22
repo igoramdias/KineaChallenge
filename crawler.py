@@ -3,6 +3,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 from time import sleep
 import os
 import pandas as pd
@@ -155,32 +156,43 @@ def crawl_data_week(star_date: str, end_date: str) -> None:
                     pass
 
             if src == 'REUNE':
-                driver.get(sources[src])
+                try:
+                    driver.get(sources[src])
 
-                print('Acessando site do REUNE para dia {}...'.format(dia))
-                
-                WebDriverWait(driver, 10).until(
-                    EC.frame_to_be_available_and_switch_to_it((By.CLASS_NAME,"full"))
-                )
-                
-                driver.execute_script("document.getElementsByName('Dt_Ref')[0].value = '{}'".format(dia)) # Define a data
-                driver.execute_script("document.getElementById('TpInstFinanceiro').value = 'DEB'") # Define tipo de instrumento
-                driver.execute_script("document.getElementsByName('escolha')[1].click()") # Define tipo de visualização
-                driver.execute_script("document.getElementsByName('saida')[1].click()") # Define tipo de arquivo 
-                driver.execute_script("document.getElementsByName('Consultar')[0].click()") # Realiza a consulta
+                    print('Acessando site do REUNE para dia {}...'.format(dia))
                     
-                ant_file = os.path.join(downloads_path, date_to_file(dia, 'REUNE'))
-                new_file = os.path.join(new_dir, date_to_file(dia, 'REUNE'))
+                    WebDriverWait(driver, 10).until(
+                        EC.frame_to_be_available_and_switch_to_it((By.CLASS_NAME,"full"))
+                    )
+                    
+                    driver.execute_script("document.getElementsByName('Dt_Ref')[0].value = '{}'".format(dia)) # Define a data
+                    driver.execute_script("document.getElementsByName('Dt_Ref')[0].onblur()") # Atualiza a página
 
-                print('Coleta concluída!')
-        
-                while not os.path.exists(ant_file):
-                    sleep(1)
+                    driver.execute_script("document.getElementById('TpInstFinanceiro').value = 'DEB'") # Define tipo de instrumento
+                    driver.execute_script("document.getElementsByName('escolha')[1].click()") # Define tipo de visualização
+                    driver.execute_script("document.getElementsByName('saida')[1].click()") # Define tipo de arquivo 
 
-                if os.path.isfile(ant_file):
-                    os.replace(ant_file, new_file)
-                else:
-                    raise ValueError("%s isn't a file!" % ant_file)
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.NAME,"Tipo"))
+                    )
+                    
+                    driver.execute_script("document.getElementsByName('Tipo')[0].click()") # Realiza a consulta
+                    driver.execute_script("document.getElementsByName('Consultar')[0].click()") # Realiza a consulta
+                        
+                    ant_file = os.path.join(downloads_path, date_to_file(dia, 'REUNE'))
+                    new_file = os.path.join(new_dir, date_to_file(dia, 'REUNE'))
+
+                    print('Coleta concluída!')
+            
+                    while not os.path.exists(ant_file):
+                        sleep(1)
+
+                    if os.path.isfile(ant_file):
+                        os.replace(ant_file, new_file)
+                    else:
+                        raise ValueError("%s isn't a file!" % ant_file)
+                except TimeoutException:
+                    print('Não possui dados para esse dia no site do REUNE!')
 
     driver.close()
 

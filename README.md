@@ -1,6 +1,75 @@
 # KineaChallenge
 OBJETIVO: Repositório para desenvolvimento de um sistema de controle para o mercado secundário de debêntures
 
+## Fluxograma e Organização de Arquivos
+
+![Fluxograma](https://user-images.githubusercontent.com/62359383/112237518-9bc32900-8c21-11eb-8e83-a34eabddd635.png)
+
+## Entrando no Python Virtual Env
+Para usar o Python venv disponível, basta seguir os seguintes passos:
+
+
+1. [Inserir texto aqui]
+
+Com isso, pode-se rodar o programa tranquilo, uma vez que todas as bibliotecas necessárias já estarão disponíveis.
+
+## Operando o programa
+O programa deve ser rodado de forma semanal, com o intuito de atualizar os arquivos com as transações que ocorreram na semana. Pode-se separá-lo em três partes:
+
+### Realizando pull de dados semanais com o crawler
+>Essa parte servirá para colocar o crawler para rodar e ir atrás de dados da semana para preencher as planilhas de IPCA - ANBIMA, IPCA - Mercado, CDI - ANBIMA, CDI - Mercado, %CDI - ANBIMA e %CDI - Mercado. 
+
+Tais dados estarão nos sites:
+
+- IMAB: https://www.anbima.com.br/pt_br/informar/ima-resultados-diarios.htm
+- REUNE: https://www.anbima.com.br/pt_br/informar/sistema-reune.htm
+- ETTJ: https://www.anbima.com.br/pt_br/informar/curvas-de-juros-fechamento.htm 
+- TAXAS: https://www.anbima.com.br/informacoes/merc-sec-debentures/default.asp
+
+Para realizá-la, basta inserir 'True' em:
+
+<Figura>
+  
+ Em sendo 'True' a resposta inserida, inputa-se as datas de início e fim:
+ 
+ <Figura>
+  
+ Término da operação é mercado com:
+ 
+ <Figura>
+
+### Realizando pull de dados diário com o crawler
+>Essa parte servirá para colocar o crawler para rodar e ir atrás de dados do dia para preencher as planilhas de Cadastro e Cadastro - INFRA. 
+
+Tais dados estarão no site:
+
+- Debêntures: http://www.debentures.com.br/exploreosnd/consultaadados/emissoesdedebentures/caracteristicas_f.asp?tip_deb=publicas
+
+Para realizá-la, basta inserir 'True' em:
+
+<Figura>
+  
+ Em sendo 'True' a resposta inserida, realiza-se a pesquisa para o dia. Término da operação é mercado com:
+ 
+ <Figura>
+
+### Incrementação dos dados
+>Essa parte servirá para atualizar a planilha com os dados coletados. 
+
+Para tal, será necessário qual a data que deseja realizar a atualização, em:
+
+<Figura>
+ 
+Caso seja necessário atualizar os dados de Rating, responda com 'True' a pergunta:
+
+<Figura>
+  
+Programa termina com:
+
+<Figura>
+  
+
+
 ## Explanação das tabelas
 
 ### Cadastro

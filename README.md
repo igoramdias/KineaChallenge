@@ -3,7 +3,7 @@ OBJETIVO: Repositório para desenvolvimento de um sistema de controle para o mer
 
 ## Fluxograma e Organização de Arquivos
 
-![Fluxograma](https://user-images.githubusercontent.com/62359383/112353008-1041aa80-8caa-11eb-9130-ce9e70269ab6.png)
+![Fluxograma](https://user-images.githubusercontent.com/62359383/112543931-2e380980-8d95-11eb-8b0e-47f64241d82d.png)
 
 ## Entrando no Python Virtual Env
 Para usar o Python venv disponível, basta seguir os seguintes passos:

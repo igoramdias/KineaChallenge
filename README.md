@@ -2,18 +2,21 @@
 OBJETIVO: Repositório para desenvolvimento de um sistema de controle para o mercado secundário de debêntures
 
 ## Fluxograma e Organização de Arquivos
+![Fluxograma](https://user-images.githubusercontent.com/62359383/113014611-1bd21d00-9153-11eb-8049-9fd5d947dd2e.png)
 
-![Fluxograma](https://user-images.githubusercontent.com/62359383/112543931-2e380980-8d95-11eb-8b0e-47f64241d82d.png)
+## Bibliotecas requisitadas
 
-## Entrando no Python Virtual Env
-Para usar o Python venv disponível, basta seguir os seguintes passos:
+Todas as bibliotecas necessárias para rodar o código estão no txt requirements. Dessa forma, para deixar pronto, basta:
+pip install -r requirements.txt
 
+## Setando o crawler
+Para usar o crawler, é necessário usar o chromedriver. Para tal:
 
-1. No CMD, coloque: path_to_KC_Project/KCvenv/Scripts/activate.bat
-2. Ainda, no CMD: pip install -r requirements.txt
-3. Pode rodar o programa!
+1. Pegue sua versão do Google Chrome
+2. Vá em https://chromedriver.chromium.org/downloads
+3. Baixe o Chrome Driver para a versão do Google Chrome utilizada
 
-Com isso, pode-se rodar o programa tranquilo, uma vez que todas as bibliotecas necessárias já estarão disponíveis.
+Com isso, pode-se rodar o crawler.
 
 ## Operando o programa
 O programa deve ser rodado de forma semanal, com o intuito de atualizar os arquivos com as transações que ocorreram na semana. Pode-se separá-lo em três partes:

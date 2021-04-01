@@ -66,7 +66,7 @@ def crawl_data_week(star_date: str, end_date: str) -> None:
     chrome_options = Options()
 
     driver = webdriver.Chrome(
-        executable_path=os.path.join(downloads_path, "chromedriver.exe"), options=chrome_options
+        executable_path=os.path.join(downloads_path, "chromedriver.exe"), options=chrome_options # Assumindo que o driver está em Downloads
     )
 
     Feriados = list(pd.read_excel(os.path.join(downloads_path, "Feriados.xlsx"), header=None)[0])
@@ -209,7 +209,7 @@ def crawl_data_today() -> None:
     chrome_options = Options()
 
     driver = webdriver.Chrome(
-        executable_path=os.path.join(downloads_path, "chromedriver.exe"), options=chrome_options
+        executable_path=os.path.join(downloads_path, "chromedriver.exe"), options=chrome_options # Assumindo que o driver está em Downloads
     )
     
     dia = date.strftime(date.today(), '%d/%m/%Y')

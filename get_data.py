@@ -179,8 +179,8 @@ def source(dt: str, get_rat: str) -> None:
     downloads_path = os.path.join(downloads_path, date)
 
     global DATA_DEB
-    DATA_DEB_path = str([file for file in os.listdir(downloads_path) if 'Debentures' in file][0])
-    DATA_DEB = pd.read_table(os.path.join(downloads_path, DATA_DEB_path), encoding='ANSI', skiprows=3)
+    DATA_DEB_path = str([file for file in os.listdir(os.path.dirname(downloads_path)) if 'Debentures' in file][0])
+    DATA_DEB = pd.read_table(os.path.join(os.path.dirname(downloads_path), DATA_DEB_path), encoding='ANSI', skiprows=3)
     DATA_DEB, Lixo  = clean(DATA_DEB, 'DATA_DEB')
 
     global IMAB
@@ -305,7 +305,10 @@ def wis_cadastro() -> None:
                 infra = 0
 
             perct = row['PercentualMultiplicador/Rentabilidade'] if row['PercentualMultiplicador/Rentabilidade'] != ' -' else np.nan
-            kinea = 0 # Por default, assume que não está presente na Kinea    
+            kinea = 0 # Por default, assume que não está presente na Kinea  
+            dt_neg = pd.to_datetime(row['DatadoIniciodaRentabilidade'], dayfirst=True) if row['DatadoIniciodaRentabilidade'] != np.nan and not pd.isnull(row['DatadoIniciodaRentabilidade']) else np.nan
+            if dt_neg != np.nan and not pd.isnull(dt_neg):
+                dt_neg = str((dt_neg + datetime.timedelta(90)).date())[-2:] + '/' + str((dt_neg + datetime.timedelta(90)).date())[5:7] + '/' + str((dt_neg + datetime.timedelta(90)).date())[0:4]  
 
             # Preenchimento das colunas
             aux = aux.append({
@@ -313,6 +316,7 @@ def wis_cadastro() -> None:
                 'Emissor': row['Empresa'], 
                 'Infraestrutura': infra, 
                 'Data de Saida/Nova Data de Vencimento': row['DatadeSaida/NovoVencimento'],
+                'Data Início da Negociação': dt_neg,
                 'Garantia/Especie': row['Garantia/Especie'], 
                 'Valor Nominal na Emissão': row['ValorNominalnaEmissao'],
                 'Quantidade no Mercado': row['QuantidadeemMercado'],
@@ -322,6 +326,8 @@ def wis_cadastro() -> None:
                 'Deb. Incentivada (Lei12.431)': row['Deb.Incent.(Lei12.431)'],
                 'Resgate Antecipado': row['ResgateAntecipado'],
                 'Kinea': kinea}, ignore_index=True)
+
+                # Data Início da negociação = Data do Ínicio da Rentabilidade + 90 dias corridos
 
     df = df.append(aux, ignore_index=True) # Junta os dados novos com os antigos
 
@@ -700,8 +706,8 @@ def wis_cdi_mercado() -> None:
                     'Volume Negociado': vol_neg,
                     'PU Mercado': pu_mercado,
                     'Duration Mercado': durat_mercado,
-                    'Taxa Mercado': taxa_mercado,
-                    'Spread Mercado': spread_mercado}, ignore_index=True)
+                    'Taxa Mercado': taxa_mercado/100,
+                    'Spread Mercado': spread_mercado/100}, ignore_index=True)
 
     df = df.append(aux, ignore_index=True) # Junta os dados novos com os antigos
 
@@ -779,12 +785,12 @@ def wis_pct_cdi_anbima() -> None:
                     'Taxa Emissão': taxa_emi,
                     'PU ANBIMA': pu_anbima,
                     'Duration ANBIMA': durat_anbima,
-                    'Taxa ANBIMA': taxa_anbima,
+                    'Taxa ANBIMA': taxa_anbima/100,
                     'Pré Ref ANBIMA': pre_ref_anbima_date,
                     'Taxa Pré Ref ANBIMA': pre_ref_anbima_tax,
-                    'Spread Pré Ref ANBIMA': spread_anbima_pre,
+                    'Spread Pré Ref ANBIMA': spread_anbima_pre/100,
                     'Taxa ETTJ Ref ANBIMA': ettj_ref_anbima_tax,
-                    'Spread ETTJ Ref ANBIMA': spread_anbima_ettj}, ignore_index=True)
+                    'Spread ETTJ Ref ANBIMA': spread_anbima_ettj/100}, ignore_index=True)
 
     df = df.append(aux, ignore_index=True) # Junta os dados novos com os antigos
 
@@ -863,12 +869,12 @@ def wis_pct_cdi_mercado() -> None:
                     'Volume Negociado': vol_neg, 
                     'PU Mercado': pu_mercado,
                     'Duration Mercado': durat_mercado,
-                    'Taxa Mercado': taxa_mercado,
+                    'Taxa Mercado': taxa_mercado/100,
                     'Pré Ref Mercado': pre_ref_mercado_date,
                     'Taxa Pré Ref Mercado': pre_ref_mercado_tax,
-                    'Spread Pré Ref Mercado': spread_mercado_pre,
+                    'Spread Pré Ref Mercado': spread_mercado_pre/100,
                     'Taxa ETTJ Ref Mercado': ettj_ref_mercado_tax,
-                    'Spread ETTJ Ref Mercado': spread_mercado_ettj}, ignore_index=True)
+                    'Spread ETTJ Ref Mercado': spread_mercado_ettj/100}, ignore_index=True)
 
     df = df.append(aux, ignore_index=True) # Junta os dados novos com os antigos
 
